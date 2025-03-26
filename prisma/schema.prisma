@@ -1,0 +1,125 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int     @id @default(autoincrement())
+  name       String
+  email      String  @unique
+  password   String
+  role       Role    @default(CUSTOMER)
+  address    String? 
+  orders     Order[]
+  cart       Cart?
+  createdAt  DateTime @default(now())
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Decimal
+  stock       Int
+  images      String[] // Array of image URLs
+  categoryId  Int
+  category    Category @relation(fields: [categoryId], references: [id])
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+  createdAt   DateTime @default(now())
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  products    Product[]
+  createdAt   DateTime  @default(now())
+}
+
+model Order {
+  id          Int        @id @default(autoincrement())
+  userId      Int
+  user        User       @relation(fields: [userId], references: [id])
+  totalAmount Decimal
+  status      OrderStatus @default(PENDING)
+  payment     Payment?
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+
+model OrderItem {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  productId  Int
+  order      Order    @relation(fields: [orderId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+  quantity   Int
+  price      Decimal
+  createdAt  DateTime @default(now())
+}
+
+model Cart {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @unique
+  user       User      @relation(fields: [userId], references: [id])
+  cartItems  CartItem[]
+  createdAt  DateTime  @default(now())
+}
+
+model CartItem {
+  id         Int      @id @default(autoincrement())
+  cartId     Int
+  productId  Int
+  cart       Cart     @relation(fields: [cartId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+  quantity   Int
+  createdAt  DateTime @default(now())
+}
+
+model Payment {
+  id           Int        @id @default(autoincrement())
+  orderId      Int        @unique
+  order        Order      @relation(fields: [orderId], references: [id])
+  method       PaymentMethod
+  transactionId String?   
+  status       PaymentStatus @default(PENDING)
+  createdAt    DateTime @default(now())
+}
+
+enum PaymentMethod {
+  COD
+  STRIPE
+  PAYPAL
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
