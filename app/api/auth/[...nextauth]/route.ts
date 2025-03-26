@@ -16,7 +16,6 @@ const handler = NextAuth({
           // TODO: User credentials type from next-aut
           async authorize(credentials: any) {
             // Do zod validation, OTP validation here
-            console.log("authorime")
             const hashedPassword = await bcrypt.hash(credentials.password, 10);
             const existingUser = await prisma.user.findFirst({
                 where: {
@@ -25,7 +24,7 @@ const handler = NextAuth({
             });
 
             if (existingUser) {
-                const passwordValidation = await bcrypt.compare(credentials.password, existingUser.password);
+                const passwordValidation = await bcrypt.compare(credentials.password, existingUser.password || "");
                 if (passwordValidation) {
                     return {
                         id: existingUser.id.toString(),
@@ -65,6 +64,25 @@ const handler = NextAuth({
     ],
     secret: process.env.JWT_SECRET ,
     callbacks: {
+        async signIn({ user, account }) {
+            if (account?.provider === "google") {
+              const existingUser = await prisma.user.findUnique({
+                where: { email: user.email || "" }
+              });
+      
+              if (!existingUser) {
+                await prisma.user.create({
+                  data: {
+                    name: user.name || "",
+                    email: user.email || "",
+                    image: user.image || "",
+                    password: null  
+                  }
+                });
+              }
+            }
+            return true;
+          },        
         // TODO: can u fix the type here? Using any is bad
         async session({ token, session }: any) {
             session.user.id = token.sub
@@ -72,7 +90,7 @@ const handler = NextAuth({
             return session
         },
         async redirect() {
-            return `${process.env.NEXTAUTH_URL}/`;  // Ensure correct port
+            return `${process.env.NEXTAUTH_URL}/`;  
           }
     }
   })
